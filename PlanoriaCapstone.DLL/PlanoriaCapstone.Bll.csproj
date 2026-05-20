@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="itext7" Version="9.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+	  
+	      <PackageReference Include="itext7" Version="9.6.0" />
+	  
+	      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+	  
+	      <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+	  
+	      <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+	        <PrivateAssets>all</PrivateAssets>
+	        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	      </PackageReference>
+
+        <ProjectReference Include="..\PlanoriaCapstone.Dal\PlanoriaCapstone.Dal.csproj" />
+    <ProjectReference Include="..\PlanoriaCapstone.DTOs\PlanoriaCapstone.DTOs.csproj" />
+    <ProjectReference Include="..\PlanoriaCapstone.Models\PlanoriaCapstone.Models.csproj" />
+  </ItemGroup>
+
+</Project>

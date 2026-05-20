@@ -1,0 +1,6 @@
+@Backend_PlanoriaCapstone_HostAddress = http://localhost:5232
+
+GET {{Backend_PlanoriaCapstone_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

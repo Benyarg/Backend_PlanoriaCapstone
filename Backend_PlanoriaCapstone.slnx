@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Backend_PlanoriaCapstone/Backend_PlanoriaCapstone.csproj" />
+  <Project Path="PlanoriaCapstone.Dal/PlanoriaCapstone.Dal.csproj" />
+  <Project Path="PlanoriaCapstone.DLL/PlanoriaCapstone.Bll.csproj" />
+  <Project Path="PlanoriaCapstone.DTOs/PlanoriaCapstone.DTOs.csproj" />
+  <Project Path="PlanoriaCapstone.Models/PlanoriaCapstone.Models.csproj" />
+</Solution>

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using PlanoriaCapstone.Bll.Interface;
 using PlanoriaCapstone.DTOs.Archivo;
 using System.Text;
@@ -14,7 +14,7 @@ namespace PlanoriaCapstone.Bll.Service
         public GeminiService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _httpClient = httpClientFactory.CreateClient();
-            _apiKey = configuration["Gemini:ApiKey"];
+            _apiKey = configuration["Gemini:ApiKey"] ?? throw new ArgumentNullException("Gemini:ApiKey no está configurado.");
         }
 
         public async Task<AnalisisDocumentoDto> AnalizarTextoAsync(string texto)

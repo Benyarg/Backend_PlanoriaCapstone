@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using PlanoriaCapstone.Bll.Interface;
 using PlanoriaCapstone.Models;
@@ -31,8 +31,9 @@ namespace PlanoriaCapstone.Bll.Service
                 new Claim(ClaimTypes.Role, usuario.IdRol == 1 ? "ADMIN" : "USER")
             };
 
+            var jwtKey = _config["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key no está configurado.");
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+                Encoding.UTF8.GetBytes(jwtKey));
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

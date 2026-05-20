@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using PlanoriaCapstone.Bll.Interface;
 using PlanoriaCapstone.Dal.Interface;
 using PlanoriaCapstone.DTOs.Auth;
+using PlanoriaCapstone.Models;
 using System.Security.Claims;
 
 namespace Backend_PlanoriaCapstone.Controllers
@@ -13,70 +15,111 @@ namespace Backend_PlanoriaCapstone.Controllers
         private readonly IAuthService _authService;
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly IJwtService _jwtService;
+        private readonly IUsuarioService _usuarioService;
 
         public AuthController(
             IAuthService authService,
             IUsuarioRepository usuarioRepository,
-            IJwtService jwtService)
+            IJwtService jwtService,
+            IUsuarioService usuarioService)
         {
             _authService = authService;
             _usuarioRepository = usuarioRepository;
             _jwtService = jwtService;
+            _usuarioService = usuarioService;
         }
 
-        // LOGIN
+        // POST api/auth/login
+        // Authenticates an existing user and returns a JWT token
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO dto)
         {
-            var usuario = await _usuarioRepository
-                .ObtenerPorCorreoAsync(dto.Correo);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var usuario = await _usuarioRepository.ObtenerPorCorreoAsync(dto.Correo);
 
             if (usuario == null || !usuario.Estado)
-                return Unauthorized("Credenciales inválidas");
+                return Unauthorized("Credenciales inválidas.");
 
             if (usuario.Provider == "GOOGLE")
-                return BadRequest("Use login con Google");
+                return BadRequest("Esta cuenta usa Google. Por favor inicia sesión con Google.");
 
-            var passwordValida = BCrypt.Net.BCrypt.Verify(
-                dto.Password,
-                usuario.PasswordHash
-            );
+            var passwordValida = BCrypt.Net.BCrypt.Verify(dto.Password, usuario.PasswordHash);
 
             if (!passwordValida)
-                return Unauthorized("Credenciales inválidas");
+                return Unauthorized("Credenciales inválidas.");
 
             var token = _jwtService.GenerarToken(usuario);
 
             return Ok(new AuthResponseDTO
             {
-                Token = token,
+                Token     = token,
                 IdUsuario = usuario.IdUsuario,
-                Nombre = usuario.Nombre,
-                Correo = usuario.Correo,
-                Rol = usuario.IdRol == 1 ? "ADMIN" : "USER"
+                Nombre    = usuario.Nombre,
+                Correo    = usuario.Correo,
+                Rol       = usuario.IdRol == 1 ? "ADMIN" : "USER"
             });
         }
 
-        // ME (usuario autenticado)
+        // POST api/auth/register
+        // Registers a new user account
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromForm] RegisterDTO dto, IFormFile? fotoPerfil)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            // Check for duplicate email
+            var existente = await _usuarioRepository.ObtenerPorCorreoAsync(dto.Correo);
+            if (existente != null)
+                return Conflict("Ya existe una cuenta con ese correo electrónico.");
+
+            var nuevoUsuario = new Usuario
+            {
+                Nombre        = dto.Nombre,
+                Apellido      = dto.Apellido,
+                Correo        = dto.Correo,
+                // Pass the RAW password — UsuarioService.RegistrarAsync() hashes it internally.
+                // Do NOT pre-hash here; that would cause double-hashing.
+                PasswordHash  = dto.Password ?? throw new ArgumentException("La contraseña es requerida."),
+                Provider      = "LOCAL",
+                Estado        = true,
+                FechaRegistro = DateTime.UtcNow,
+                IdRol         = 2  // USER by default
+            };
+
+            var creado = await _usuarioService.RegistrarAsync(nuevoUsuario, fotoPerfil);
+
+            var token = _jwtService.GenerarToken(creado);
+
+            return CreatedAtAction(nameof(Me), null, new AuthResponseDTO
+            {
+                Token     = token,
+                IdUsuario = creado.IdUsuario,
+                Nombre    = creado.Nombre,
+                Correo    = creado.Correo,
+                Rol       = "USER"
+            });
+        }
+
+        // GET api/auth/me
+        // Returns the profile of the currently authenticated user
         [HttpGet("me")]
+        [Authorize]
         public async Task<IActionResult> Me()
         {
-            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (idClaim == null) return Unauthorized();
 
-            if (idClaim == null)
-                return Unauthorized();
-
-            var usuario = await _usuarioRepository
-                .ObtenerPorIdAsync(int.Parse(idClaim));
-
-            if (usuario == null)
-                return NotFound();
+            var usuario = await _usuarioRepository.ObtenerPorIdAsync(int.Parse(idClaim));
+            if (usuario == null) return NotFound();
 
             return Ok(new
             {
                 usuario.IdUsuario,
                 usuario.Nombre,
+                usuario.Apellido,
                 usuario.Correo,
+                usuario.FotoPerfilUrl,
                 Rol = usuario.IdRol == 1 ? "ADMIN" : "USER"
             });
         }

@@ -22,6 +22,7 @@ services:
       - sqlserver
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PlanoriaDatabase;User Id=sa;Password=Planoria123*;TrustServerCertificate=True;
+      - GEMINI_API_KEY=AIzaSyC2_G6CpoXF9bA2B9zDzI81JWVtHDXx350
     networks:
       - planoria-network
 

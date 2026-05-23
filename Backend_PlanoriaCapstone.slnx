@@ -4,4 +4,5 @@
   <Project Path="PlanoriaCapstone.DLL/PlanoriaCapstone.Bll.csproj" />
   <Project Path="PlanoriaCapstone.DTOs/PlanoriaCapstone.DTOs.csproj" />
   <Project Path="PlanoriaCapstone.Models/PlanoriaCapstone.Models.csproj" />
+  <Project Path="PlanoriaCapstone.Tests/PlanoriaCapstone.Tests.csproj" Id="de2db7f9-4d3f-43fb-853a-9da7e022e936" />
 </Solution>

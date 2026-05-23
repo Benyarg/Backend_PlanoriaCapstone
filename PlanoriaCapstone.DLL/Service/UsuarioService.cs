@@ -2,7 +2,6 @@
 using PlanoriaCapstone.Bll.Interface;
 using PlanoriaCapstone.Dal.Interface;
 using PlanoriaCapstone.Models;
-using BCrypt.Net;
 
 namespace PlanoriaCapstone.Bll.Service
 {
@@ -17,128 +16,102 @@ namespace PlanoriaCapstone.Bll.Service
             IImageService imageService)
         {
             _usuarioRepository = usuarioRepository;
-
             _imageService = imageService;
         }
+
+        // =========================================
+        // OBTENER USUARIO POR ID
+        // =========================================
+
+        public async Task<Usuario?> ObtenerPorIdAsync(
+            int id)
+        {
+            return await _usuarioRepository
+                .ObtenerPorIdAsync(id);
+        }
+
+        // =========================================
+        // REGISTRAR USUARIO
+        // =========================================
 
         public async Task<Usuario> RegistrarAsync(
             Usuario usuario,
             IFormFile? fotoPerfil)
         {
-            var existeCorreo = await _usuarioRepository
-                .ObtenerPorCorreoAsync(usuario.Correo);
-
-            if (existeCorreo != null)
+            // HASH PASSWORD
+            if (!string.IsNullOrEmpty(usuario.PasswordHash))
             {
-                throw new Exception(
-                    "El correo ya está registrado.");
+                usuario.PasswordHash =
+                    BCrypt.Net.BCrypt.HashPassword(
+                        usuario.PasswordHash);
             }
 
-            // GOOGLE LOGIN
-            if (!string.IsNullOrWhiteSpace(usuario.GoogleId))
+            // FOTO PERFIL
+            if (fotoPerfil != null &&
+                fotoPerfil.Length > 0)
             {
-                usuario.Provider = "GOOGLE";
+                var rutaImagen =
+                    await _imageService
+                        .GuardarImagenAsync(
+                            fotoPerfil);
 
-                usuario.PasswordHash = null;
+                usuario.FotoPerfilUrl =
+                    rutaImagen;
             }
 
-            // REGISTRO LOCAL
-            else
-            {
-                usuario.Provider = "LOCAL";
-
-                if (string.IsNullOrWhiteSpace(
-                    usuario.PasswordHash))
-                {
-                    throw new Exception(
-                        "La contraseña es requerida.");
-                }
-
-                usuario.PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword(usuario.PasswordHash);
-            }
-
-            // GUARDAR FOTO PERFIL
-            usuario.FotoPerfilUrl = await _imageService
-                .GuardarImagenPerfilAsync(fotoPerfil);
-
-            // DATOS INICIALES
-            usuario.FechaRegistro = DateTime.UtcNow;
-
-            usuario.UltimoAcceso = DateTime.UtcNow;
-
-            usuario.RachaDias = 0;
-
-            usuario.Puntos = 0;
-
-            usuario.Nivel = 1;
+            usuario.FechaRegistro =
+                DateTime.UtcNow;
 
             usuario.Estado = true;
 
-            usuario.IdRol = 2;
+            if (usuario.IdRol == 0)
+            {
+                usuario.IdRol = 2;
+            }
 
-            await _usuarioRepository.CrearAsync(usuario);
+            await _usuarioRepository
+                .CrearAsync(usuario);
 
-            await _usuarioRepository.GuardarCambiosAsync();
+            await _usuarioRepository
+                .GuardarCambiosAsync();
 
             return usuario;
         }
 
-        public async Task<Usuario?> ObtenerPorIdAsync(int id)
-        {
-            return await _usuarioRepository
-                .ObtenerPorIdAsync(id);
-        }
-
-        public async Task<IEnumerable<Usuario>> ObtenerTodosAsync()
-        {
-            return await _usuarioRepository
-                .ObtenerTodosAsync();
-        }
+        // =========================================
+        // EDITAR PERFIL
+        // =========================================
 
         public async Task<bool> EditarPerfilAsync(
-            int id,
+            int idUsuario,
             string nombre,
             string? apellido,
             string correo,
             IFormFile? fotoPerfil)
         {
-            var usuario = await _usuarioRepository
-                .ObtenerPorIdAsync(id);
+            var usuario =
+                await _usuarioRepository
+                    .ObtenerPorIdAsync(
+                        idUsuario);
 
             if (usuario == null)
-            {
                 return false;
-            }
 
             usuario.Nombre = nombre;
-
             usuario.Apellido = apellido;
+            usuario.Correo = correo;
 
-            // VALIDAR UNICIDAD DE CORREO SI CAMBIÓ
-            if (!string.Equals(
-                usuario.Correo, correo,
-                StringComparison.OrdinalIgnoreCase))
+            // FOTO
+            if (fotoPerfil != null &&
+                fotoPerfil.Length > 0)
             {
-                var existente = await _usuarioRepository
-                    .ObtenerPorCorreoAsync(correo);
-
-                if (existente != null
-                    && existente.IdUsuario != id)
-                {
-                    throw new Exception(
-                        "El correo ya está registrado por otro usuario.");
-                }
-
-                usuario.Correo = correo;
-            }
-
-            // SI SUBE NUEVA FOTO
-            if (fotoPerfil != null)
-            {
-                usuario.FotoPerfilUrl =
+                var rutaImagen =
                     await _imageService
-                        .GuardarImagenPerfilAsync(fotoPerfil);
+                        .GuardarImagenAsync(
+                            fotoPerfil);
+
+                usuario.FotoPerfilUrl =
+                    rutaImagen;
             }
 
             await _usuarioRepository
@@ -150,37 +123,34 @@ namespace PlanoriaCapstone.Bll.Service
             return true;
         }
 
+        // =========================================
+        // CAMBIAR PASSWORD
+        // =========================================
+
         public async Task<bool> CambiarPasswordAsync(
-            int id,
+            int idUsuario,
             string passwordActual,
             string nuevaPassword)
         {
-            var usuario = await _usuarioRepository
-                .ObtenerPorIdAsync(id);
+            var usuario =
+                await _usuarioRepository
+                    .ObtenerPorIdAsync(
+                        idUsuario);
 
             if (usuario == null)
-            {
                 return false;
-            }
 
-            // GOOGLE NO TIENE PASSWORD LOCAL
-            if (usuario.Provider == "GOOGLE")
-            {
-                throw new Exception(
-                    "La cuenta Google no tiene contraseña local.");
-            }
+            var passwordValida =
+                BCrypt.Net.BCrypt.Verify(
+                    passwordActual,
+                    usuario.PasswordHash);
 
-            // VERIFICAR CONTRASEÑA ACTUAL
-            if (string.IsNullOrWhiteSpace(usuario.PasswordHash)
-                || !BCrypt.Net.BCrypt.Verify(
-                    passwordActual, usuario.PasswordHash))
-            {
-                throw new Exception(
-                    "La contraseña actual es incorrecta.");
-            }
+            if (!passwordValida)
+                return false;
 
-            usuario.PasswordHash = BCrypt.Net.BCrypt
-                .HashPassword(nuevaPassword);
+            usuario.PasswordHash =
+                BCrypt.Net.BCrypt.HashPassword(
+                    nuevaPassword);
 
             await _usuarioRepository
                 .ActualizarAsync(usuario);
@@ -191,21 +161,23 @@ namespace PlanoriaCapstone.Bll.Service
             return true;
         }
 
-        public async Task<bool> EliminarCuentaAsync(int id)
+        // =========================================
+        // ELIMINAR CUENTA
+        // =========================================
+
+        public async Task<bool> EliminarCuentaAsync(
+            int idUsuario)
         {
-            var usuario = await _usuarioRepository
-                .ObtenerPorIdAsync(id);
+            var usuario =
+                await _usuarioRepository
+                    .ObtenerPorIdAsync(
+                        idUsuario);
 
             if (usuario == null)
-            {
                 return false;
-            }
-
-            // SOFT DELETE
-            usuario.Estado = false;
 
             await _usuarioRepository
-                .ActualizarAsync(usuario);
+                .EliminarAsync(usuario);
 
             await _usuarioRepository
                 .GuardarCambiosAsync();
